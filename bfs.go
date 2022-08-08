@@ -66,11 +66,8 @@ type Course struct {
 
 	Code    string
 	Name    string
+	Type    string
 	Classes []Class
-}
-
-func (c *Class) print() {
-	fmt.Printf("class: %v")
 }
 
 func rel(c1, c2 Constraint) {
@@ -83,11 +80,11 @@ func search() {
 }
 
 func get_safe_atoi(num string) int {
-	var num_int, err = strconv.Atoi(num)
+	var val, err = strconv.Atoi(num)
 	if err != nil {
 		panic(err)
 	}
-	return num_int
+	return val
 }
 
 func create_class(data string) Class {
@@ -95,11 +92,16 @@ func create_class(data string) Class {
 	// todo handle if no results
 
 	var cart_opts_string = gjson.Get(data, "cart_opts").Str
-	var meeting_times_arr = gjson.Get(data, "meetingTimes")
+	var meeting_times_str = gjson.Parse(gjson.Get(data, "meetingTimes").Str)
 
 	var instr = gjson.Get(data, "instr").Str
+	if instr == "" {
+		instr = "TA"
+	}
+
 	var _type = gjson.Get(data, "schd").Str
-	var credit_hours = get_safe_atoi(gjson.Get(cart_opts_string, "credit_hrs.options.0.label").Str)
+	var credit_hours_string = gjson.Get(cart_opts_string, "credit_hrs.options.0.label").Str
+	var credit_hours = get_safe_atoi(credit_hours_string)
 
 	var new_class Class
 	new_class.Instructor = instr
@@ -107,16 +109,21 @@ func create_class(data string) Class {
 	new_class.CreditHours = credit_hours
 
 	constraints := make([]Constraint, 0)
-	meeting_times_arr.ForEach(func(key, value gjson.Result) bool {
+
+	meeting_times_str.ForEach(func(key, value gjson.Result) bool {
+		fmt.Println(value)
 		var meet_day = get_safe_atoi(value.Get("meet_day").Str)
 		var start_time = get_safe_atoi(value.Get("start_time").Str)
 		var end_time = get_safe_atoi(value.Get("end_time").Str)
 		new_constr := Constraint{meet_day, start_time, end_time}
+		fmt.Println(new_constr)
 		constraints = append(constraints, new_constr)
 		return true
 	})
 
 	new_class.Constraints = constraints
+
+	fmt.Println(new_class)
 
 	return new_class
 }
@@ -138,8 +145,11 @@ func create_course(data string) []Course {
 
 	lec_course.Code = code
 	lec_course.Name = name
+	lec_course.Type = "LEC"
+
 	rec_course.Code = code
 	rec_course.Name = name
+	rec_course.Type = "REC"
 
 	lec_classes := make([]Class, 0)
 	rec_classes := make([]Class, 0)
@@ -147,7 +157,7 @@ func create_course(data string) []Course {
 	var course_list = gjson.Get(data, "results")
 	// get name and code from first class
 	course_list.ForEach(func(key, value gjson.Result) bool {
-		class_str := value.Str
+		class_str := value.String()
 		new_class := create_class(class_str)
 		if new_class.Type == "LEC" {
 			lec_classes = append(lec_classes, new_class)
@@ -204,6 +214,10 @@ func main() {
 	courses := make([]Course, 0)
 
 	courses = append(courses, create_course(res_string)...)
-	fmt.Println(courses)
-
+	for _, i := range courses {
+		fmt.Println(i.Code, i.Type)
+		for _, j := range i.Classes {
+			fmt.Println(j)
+		}
+	}
 }
