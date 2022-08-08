@@ -7,13 +7,14 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"reflect"
+	"strconv"
+
+	"github.com/tidwall/gjson"
 )
 
 type RequestOther struct {
@@ -46,16 +47,26 @@ type Constraint struct {
 }
 
 type Class struct {
+
 	// represents a single class instance
 	// starting and ending at a certain time
 	// lect and rec are separate Class instances,
 	// however they will have different types set
 
-	Code        string
 	Instructor  string
 	CreditHours int
-	//Type        string
-	//Constr      []Constraint
+	Type        string
+	Constraints []Constraint
+}
+
+type Course struct {
+
+	// A course, ex PHYS 1110, has a list of specific Classes
+	// to choose from, each with its own instructor and times
+
+	Code    string
+	Name    string
+	Classes []Class
 }
 
 func (c *Class) print() {
@@ -71,22 +82,97 @@ func search() {
 
 }
 
-func create_class(data map[string]interface{}) Class {
-	var cls Class
+func get_safe_atoi(num string) int {
+	var num_int, err = strconv.Atoi(num)
+	if err != nil {
+		panic(err)
+	}
+	return num_int
+}
 
-	var instr = data["instr"].(string)
-	var code = data["code"].(string)
+func create_class(data string) Class {
 
-	var cart_opts = data["cart_opts"].(interface{})
-	var credit_hrs = cart_opts["credit_hrs"].(map[string]interface{})
-	var first_option = credit_hrs["options"].([]map[string]interface{})[0]
-	var credit_hours = first_option["label"].(int)
+	// todo handle if no results
 
-	cls.Code = code
-	cls.Instructor = instr
-	cls.CreditHours = credit_hours
+	var cart_opts_string = gjson.Get(data, "cart_opts").Str
+	var meeting_times_arr = gjson.Get(data, "meetingTimes")
 
-	return cls
+	var instr = gjson.Get(data, "instr").Str
+	var _type = gjson.Get(data, "schd").Str
+	var credit_hours = get_safe_atoi(gjson.Get(cart_opts_string, "credit_hrs.options.0.label").Str)
+
+	var new_class Class
+	new_class.Instructor = instr
+	new_class.Type = _type
+	new_class.CreditHours = credit_hours
+
+	constraints := make([]Constraint, 0)
+	meeting_times_arr.ForEach(func(key, value gjson.Result) bool {
+		var meet_day = get_safe_atoi(value.Get("meet_day").Str)
+		var start_time = get_safe_atoi(value.Get("start_time").Str)
+		var end_time = get_safe_atoi(value.Get("end_time").Str)
+		new_constr := Constraint{meet_day, start_time, end_time}
+		constraints = append(constraints, new_constr)
+		return true
+	})
+
+	new_class.Constraints = constraints
+
+	return new_class
+}
+
+func create_course(data string) []Course {
+
+	// return a slice with either 1 or 2 courss, depending on whether the course
+	// needs a recitation
+
+	// TODO handle edge case where no classes, error
+	// TODO handle edge case where recitation + no recitation
+
+	courses := make([]Course, 0)
+	var lec_course Course
+	var rec_course Course
+
+	var code = gjson.Get(data, "results.0.code").Str
+	var name = gjson.Get(data, "results.0.title").Str
+
+	lec_course.Code = code
+	lec_course.Name = name
+	rec_course.Code = code
+	rec_course.Name = name
+
+	lec_classes := make([]Class, 0)
+	rec_classes := make([]Class, 0)
+
+	var course_list = gjson.Get(data, "results")
+	// get name and code from first class
+	course_list.ForEach(func(key, value gjson.Result) bool {
+		class_str := value.Str
+		new_class := create_class(class_str)
+		if new_class.Type == "LEC" {
+			lec_classes = append(lec_classes, new_class)
+		} else if new_class.Type == "REC" {
+			rec_classes = append(rec_classes, new_class)
+		} else {
+			fmt.Println("unknown class type: ", new_class.Type)
+		}
+		return true
+	})
+
+	lec_course.Classes = lec_classes
+	rec_course.Classes = rec_classes
+
+	courses = append(courses, lec_course)
+	if len(rec_course.Classes) > 0 {
+		courses = append(courses, rec_course)
+	}
+
+	return courses
+}
+
+func parse_input_file(filename string) {
+	//parse newline-separated input from file
+
 }
 
 func main() {
@@ -110,24 +196,14 @@ func main() {
 	res, _ := http.Post(_url, "application/json", bytes.NewBufferString(body))
 	defer res.Body.Close()
 	res_body, err := io.ReadAll(res.Body)
-
 	if err != nil {
 		panic(err)
 	}
+	var res_string = string(res_body)
 
-	var js map[string]interface{}
-	json.Unmarshal(res_body, &js)
+	courses := make([]Course, 0)
 
-	// something went wrong
-	if val, ok := js["fatal"]; ok {
-		print_fatal(val.(string))
-	}
-
-	s := reflect.ValueOf(js["results"]).Index(0).Interface()
-	i := s.(map[string]interface{})
-	fmt.Println(i["code"])
-
-	var new_class = create_class(i)
-	fmt.Println(new_class)
+	courses = append(courses, create_course(res_string)...)
+	fmt.Println(courses)
 
 }
