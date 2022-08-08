@@ -53,6 +53,8 @@ type Course struct {
 	Classes []Class
 }
 
+// FUNCTIONS
+
 func get_safe_atoi(num string) int {
 	var val, err = strconv.Atoi(num)
 	if err != nil {
@@ -203,8 +205,17 @@ func pop(stack []interface{}) []interface{} {
 	return stack[:len(stack)-1]
 }
 
-func depth_first_search() []Course {
+func DFS_iterative() []Course {
 	solution := make([]Course, 0)
+	// i is the Course cursor. So, for example, the first Course would have no constraints
+	//i := 0
+	// j is the Class cursor. So, we iterate over Classes for each i until we find one that doesn't break the constraints
+	//j := 0
+	for {
+
+		return nil
+	}
+
 	return solution
 }
 
