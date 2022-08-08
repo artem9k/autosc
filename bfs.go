@@ -1,6 +1,5 @@
 /**
-automtic scheduler for cu boulder classes (or honestly any other school)
-also FUCK GO for making me use all variables
+automatic scheduler for cu boulder classes (or honestly any other school)
 **/
 
 package main
@@ -17,27 +16,11 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-type RequestOther struct {
-	Srcdb string
-}
+// GLOBALS
 
-type RequestCriteria struct {
-	Field string
-	Value string
-}
+var DAYS_IN_WEEK = 7
 
-type RequestPayload struct {
-	Other    RequestOther
-	Criteria []RequestCriteria
-}
-
-type Classes struct {
-	Class string
-}
-
-func print_fatal(err string) {
-	fmt.Println("Fatal error: " + err)
-}
+// CLASSES
 
 type Constraint struct {
 	// A class will have several of these, for each day
@@ -70,21 +53,17 @@ type Course struct {
 	Classes []Class
 }
 
-func rel(c1, c2 Constraint) {
-	// relate two constraints.
-}
-
-func search() {
-	// search for constraint overlaps over days first, then times...
-
-}
-
 func get_safe_atoi(num string) int {
 	var val, err = strconv.Atoi(num)
 	if err != nil {
 		panic(err)
 	}
 	return val
+}
+
+func parse_input_file(filename string) {
+	//parse newline-separated input from file
+
 }
 
 func create_class(data string) Class {
@@ -135,6 +114,11 @@ func create_course(data string) []Course {
 
 	// TODO handle edge case where no classes, error
 	// TODO handle edge case where recitation + no recitation
+	// TODO exclude teacher
+	// TODO minimum time between classes
+	// TODO latest possible time for a class
+	// TODO earliest possible time for a class
+	// TODO dead zone - comma separated times where no classes. Implement this as a list
 
 	courses := make([]Course, 0)
 	var lec_course Course
@@ -180,9 +164,48 @@ func create_course(data string) []Course {
 	return courses
 }
 
-func parse_input_file(filename string) {
-	//parse newline-separated input from file
+func check_constraint_overlap(c1, c2 Constraint) bool {
+	var start_overlap_1 = (c2.start_t < c1.start_t && c1.start_t < c2.end_t)
+	var start_overlap_2 = (c2.start_t < c2.start_t && c2.start_t < c2.end_t)
+	var end_overlap_1 = (c2.start_t < c1.end_t && c1.end_t < c2.end_t)
+	var end_overlap_2 = (c1.start_t < c2.end_t && c2.end_t < c1.end_t)
 
+	return !(end_overlap_1 || end_overlap_2 || start_overlap_1 || start_overlap_2)
+}
+
+func check_class_overlap(cls1, cls2 Class) bool {
+	if len(cls1.Constraints) == 0 || len(cls2.Constraints) == 0 {
+		return true
+	}
+	one_ptr := 0
+	two_ptr := 0
+	var cnstr1 = cls1.Constraints
+	var cnstr2 = cls2.Constraints
+	// the constraints are already sorted by increasing day
+	for i := 0; i < DAYS_IN_WEEK; i++ {
+		if one_ptr == len(cnstr1) || two_ptr == len(cnstr2) {
+			return true
+		}
+		d_1 := cnstr1[one_ptr].day
+		d_2 := cnstr2[two_ptr].day
+		if d_1 == i && d_2 == i {
+			return check_constraint_overlap(cnstr1[one_ptr], cnstr2[two_ptr])
+		} else if cnstr1[one_ptr].day == i {
+			one_ptr += 1
+		} else if cnstr2[two_ptr].day == i {
+			two_ptr += 1
+		}
+	}
+	return true
+}
+
+func pop(stack []interface{}) []interface{} {
+	return stack[:len(stack)-1]
+}
+
+func depth_first_search() []Course {
+	solution := make([]Course, 0)
+	return solution
 }
 
 func main() {
