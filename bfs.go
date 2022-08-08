@@ -5,12 +5,13 @@ automatic scheduler for cu boulder classes (or honestly any other school)
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
+	"os"
 	"strconv"
 
 	"github.com/tidwall/gjson"
@@ -92,19 +93,15 @@ func create_class(data string) Class {
 	constraints := make([]Constraint, 0)
 
 	meeting_times_str.ForEach(func(key, value gjson.Result) bool {
-		fmt.Println(value)
 		var meet_day = get_safe_atoi(value.Get("meet_day").Str)
 		var start_time = get_safe_atoi(value.Get("start_time").Str)
 		var end_time = get_safe_atoi(value.Get("end_time").Str)
 		new_constr := Constraint{meet_day, start_time, end_time}
-		fmt.Println(new_constr)
 		constraints = append(constraints, new_constr)
 		return true
 	})
 
 	new_class.Constraints = constraints
-
-	fmt.Println(new_class)
 
 	return new_class
 }
@@ -215,28 +212,15 @@ func DFS_iterative() []Course {
 
 		return nil
 	}
-
 	return solution
 }
 
-func main() {
+func create_query_body(class string) string {
+	var body string = "{\"other\":{\"srcdb\":\"2227\"},\"criteria\":[{\"field\":\"alias\",\"value\":\"" + class + "\"}]}"
+	return body
+}
 
-	var infile string
-	var outfile string
-	var topk int
-	var class = "PHYS 1110"
-	var _url = "https://classes.colorado.edu/api/?page=fose&route=search&alias=PHYS%201110"
-
-	_url = _url + "?page=fose&route=search&"
-	_url = _url + "alias=" + url.QueryEscape(class)
-
-	flag.IntVar(&topk, "topk", 10, "list of possible schedules to return, ranked by fit. Default is 10")
-	flag.StringVar(&infile, "infile", "input.txt", "input file with each class on a new line.")
-	flag.StringVar(&outfile, "outfile", "output.txt", "output file with a list of new schedules")
-	flag.Parse()
-
-	var body string = "{\"other\":{\"srcdb\":\"2227\"},\"criteria\":[{\"field\":\"alias\",\"value\":\"PHYS 1110\"}]}"
-
+func ping_classes(_url, body string) string {
 	res, _ := http.Post(_url, "application/json", bytes.NewBufferString(body))
 	defer res.Body.Close()
 	res_body, err := io.ReadAll(res.Body)
@@ -244,10 +228,44 @@ func main() {
 		panic(err)
 	}
 	var res_string = string(res_body)
+	return res_string
+}
 
+func create_courses_list(infile string) []string {
+	list := make([]string, 0)
+	file, err := os.Open(infile)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		list = append(list, scanner.Text())
+	}
+	return list
+}
+
+func main() {
+
+	var infile string
+	var outfile string
+	var topk int
+	var _url = "https://classes.colorado.edu/api/?page=fose&route=search"
+
+	flag.IntVar(&topk, "topk", 10, "list of possible schedules to return, ranked by fit. Default is 10")
+	flag.StringVar(&infile, "infile", "input.txt", "input file with each class on a new line.")
+	flag.StringVar(&outfile, "outfile", "output.txt", "output file with a list of new schedules")
+	flag.Parse()
+
+	courses_list := create_courses_list(infile)
 	courses := make([]Course, 0)
 
-	courses = append(courses, create_course(res_string)...)
+	for _, course_name := range courses_list {
+		body := create_query_body(course_name)
+		res_string := ping_classes(_url, body)
+		courses = append(courses, create_course(res_string)...)
+	}
+
 	for _, i := range courses {
 		fmt.Println(i.Code, i.Type)
 		for _, j := range i.Classes {
