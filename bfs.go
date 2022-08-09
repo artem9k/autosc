@@ -37,6 +37,8 @@ type Class struct {
 	// lect and rec are separate Class instances,
 	// however they will have different types set
 
+	Code        string
+	Name        string
 	Instructor  string
 	CreditHours int
 	Type        string
@@ -82,12 +84,17 @@ func create_class(data string) Class {
 	}
 
 	var _type = gjson.Get(data, "schd").Str
+	var code = gjson.Get(data, "code").Str
+	var name = gjson.Get(data, "title").Str
 	var credit_hours_string = gjson.Get(cart_opts_string, "credit_hrs.options.0.label").Str
 	var credit_hours = get_safe_atoi(credit_hours_string)
 
 	var new_class Class
 	new_class.Instructor = instr
 	new_class.Type = _type
+	new_class.Code = code
+	new_class.Name = name
+
 	new_class.CreditHours = credit_hours
 
 	constraints := make([]Constraint, 0)
@@ -202,17 +209,43 @@ func pop(stack []interface{}) []interface{} {
 	return stack[:len(stack)-1]
 }
 
-func DFS_iterative() []Course {
-	solution := make([]Course, 0)
-	// i is the Course cursor. So, for example, the first Course would have no constraints
-	//i := 0
-	// j is the Class cursor. So, we iterate over Classes for each i until we find one that doesn't break the constraints
-	//j := 0
-	for {
+func push(stack []interface{}, new_item interface{}) []interface{} {
+	return append(stack, new_item)
+}
 
-		return nil
+func check_class_against_list(classes_list []Class, new_class Class) bool {
+	if len(classes_list) == 0 {
+		return true
 	}
-	return solution
+	for _, class := range classes_list {
+		if !check_class_overlap(class, new_class) {
+			return false
+		}
+	}
+	return true
+}
+
+func DFS_recursive(options []Course, solution []Class, i int) []Class {
+	// search complete
+	if i == len(options) {
+		return solution
+	}
+	for _, new_class := range options[i].Classes {
+		// compare the class with our constr
+		check := check_class_against_list(solution, new_class)
+		if check {
+			next := DFS_recursive(options, append(solution, new_class), i+1)
+			if next != nil {
+				return next
+			}
+		}
+	}
+	return nil
+}
+
+func search(options []Course) []Class {
+	result := DFS_recursive(options, make([]Class, 0), 0)
+	return result
 }
 
 func create_query_body(class string) string {
@@ -266,10 +299,19 @@ func main() {
 		courses = append(courses, create_course(res_string)...)
 	}
 
-	for _, i := range courses {
-		fmt.Println(i.Code, i.Type)
-		for _, j := range i.Classes {
-			fmt.Println(j)
-		}
+	sched := search(courses)
+
+	for i, class := range sched {
+		fmt.Println(i, ":")
+		fmt.Println(class)
 	}
+
+	/*
+		for _, i := range courses {
+			fmt.Println(i.Code, i.Type)
+			for _, j := range i.Classes {
+				fmt.Println(j)
+			}
+		}
+	*/
 }
