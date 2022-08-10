@@ -368,15 +368,30 @@ func main() {
 	var max_time_string string
 	var min_time_string string
 	var break_time_string string
+	var include_teacher_string string
+	var exclude_teacher_string string
+	var mid_day string
+	var rank_by_teacher bool
+	var rank_by_mid_day bool
 	var _url = "https://classes.colorado.edu/api/?page=fose&route=search"
 
 	flag.IntVar(&min_buffer, "min_buffer", 0, "Minimum time between classes, in minutes. Default is 0")
 	flag.IntVar(&topk, "topk", 10, "list of possible schedules to return, ranked by fit. Default is 10")
+
 	flag.StringVar(&max_time_string, "max_time", "", "latest time for any class. 24-hr format. Ex. 20:00")
 	flag.StringVar(&min_time_string, "min_time", "", "earliest time for any class. 24-hr format. Ex. 8:00.")
 	flag.StringVar(&break_time_string, "break_time", "", "time reserved for a break, or lunch. 24-hr format. Ex. 10:00-11:00")
 	flag.StringVar(&infile, "infile", "input.txt", "input file with each class on a new line.")
 	flag.StringVar(&outfile, "outfile", "output.txt", "output file with a list of new schedules")
+	flag.StringVar(&outfile, "outfile", "output.txt", "output file with a list of new schedules")
+	flag.StringVar(&include_teacher_string, "rank_by_teacher", "", "list of teachers to include, comma-separated, spaces after commas. Ex. E.Musk, K.Kardashian")
+	flag.StringVar(&exclude_teacher_string, "rank_by_teacher", "", "list of teachers to exclude, comma-separated, spaces after commas. Ex. E.Musk, K.Kardashian")
+	flag.StringVar(&outfile, "outfile", "output.txt", "output file with a list of new schedules")
+	flag.StringVar(&mid_day, "mid_day", "12:00", "time of the day to prioritize classes from. 24-hr format. Ex. 12:00")
+
+	flag.BoolVar(&rank_by_teacher, "rank_by_teacher", false, "whether to rank results by included/excluded teachers. true/false. For this to work, you must specify lists of teachers to include/exclude using --include_teacher or --exclude_teacher.")
+	flag.BoolVar(&rank_by_mid_day, "rank_by_mid_day", false, "whether to prioritize classes from around the time specified by --mid_day (default is 12:00)")
+
 	flag.Parse()
 
 	var max_time *int = nil
