@@ -10,8 +10,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 
 	"github.com/tidwall/gjson"
@@ -20,6 +22,7 @@ import (
 // GLOBALS
 
 var DAYS_IN_WEEK = 7
+var MED_TIME = 1200
 
 // CLASSES
 
@@ -31,12 +34,10 @@ type Constraint struct {
 }
 
 type Class struct {
-
 	// represents a single class instance
 	// starting and ending at a certain time
 	// lect and rec are separate Class instances,
 	// however they will have different types set
-
 	Code        string
 	Name        string
 	Instructor  string
@@ -46,10 +47,8 @@ type Class struct {
 }
 
 type Course struct {
-
 	// A course, ex PHYS 1110, has a list of specific Classes
 	// to choose from, each with its own instructor and times
-
 	Code    string
 	Name    string
 	Type    string
@@ -66,18 +65,10 @@ func get_safe_atoi(num string) int {
 	return val
 }
 
-func parse_input_file(filename string) {
-	//parse newline-separated input from file
-
-}
-
 func create_class(data string) Class {
-
 	// todo handle if no results
-
 	var cart_opts_string = gjson.Get(data, "cart_opts").Str
 	var meeting_times_str = gjson.Parse(gjson.Get(data, "meetingTimes").Str)
-
 	var instr = gjson.Get(data, "instr").Str
 	if instr == "" {
 		instr = "TA"
@@ -107,10 +98,16 @@ func create_class(data string) Class {
 		constraints = append(constraints, new_constr)
 		return true
 	})
-
 	new_class.Constraints = constraints
-
 	return new_class
+}
+
+func get_med_time(a, b int) int {
+	return (a + b) / 2
+}
+
+func get_mid_day_score(a int) int {
+	return int(math.Abs(float64(1200 - a)))
 }
 
 func create_course(data string) []Course {
@@ -119,7 +116,6 @@ func create_course(data string) []Course {
 	// needs a recitation
 
 	// TODO handle edge case where no classes, error
-	// TODO handle edge case where recitation + no recitation
 	// TODO exclude teacher
 	// TODO minimum time between classes
 	// TODO latest possible time for a class
@@ -136,7 +132,6 @@ func create_course(data string) []Course {
 	lec_course.Code = code
 	lec_course.Name = name
 	lec_course.Type = "LEC"
-
 	rec_course.Code = code
 	rec_course.Name = name
 	rec_course.Type = "REC"
@@ -158,6 +153,41 @@ func create_course(data string) []Course {
 		}
 		return true
 	})
+	sort.SliceStable(lec_classes, func(i, j int) bool {
+		a := lec_classes[i]
+		b := lec_classes[j]
+		sum_a := 0
+		sum_b := 0
+
+		for _, constr := range a.Constraints {
+			sum_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+		}
+
+		for _, constr := range b.Constraints {
+			sum_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+		}
+
+		return sum_a < sum_b
+	})
+	if len(rec_classes) > 0 {
+		sort.SliceStable(rec_classes, func(i, j int) bool {
+			// i < j
+			a := rec_classes[i]
+			b := rec_classes[j]
+			sum_a := 0
+			sum_b := 0
+
+			for _, constr := range a.Constraints {
+				sum_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+			}
+
+			for _, constr := range b.Constraints {
+				sum_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+			}
+
+			return sum_a < sum_b
+		})
+	}
 
 	lec_course.Classes = lec_classes
 	rec_course.Classes = rec_classes
@@ -306,12 +336,4 @@ func main() {
 		fmt.Println(class)
 	}
 
-	/*
-		for _, i := range courses {
-			fmt.Println(i.Code, i.Type)
-			for _, j := range i.Classes {
-				fmt.Println(j)
-			}
-		}
-	*/
 }
