@@ -15,14 +15,12 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/tidwall/gjson"
 )
 
 // GLOBALS
-
-var DAYS_IN_WEEK = 7
-var MED_TIME = 1200
 
 // CLASSES
 
@@ -53,6 +51,39 @@ type Course struct {
 	Name    string
 	Type    string
 	Classes []Class
+}
+
+type Globals struct {
+	// i use a struct for globals and params, since we have a lot of them
+	days_in_week         int
+	mid_day              int
+	time_between_classes int
+	min_time             int
+	max_time             int
+	break_start          int
+	break_end            int
+	topk                 int
+
+	rank_by_mid_day bool // add score by a function of the mid_day
+	rank_by_teacher bool // add score if the teacher is in prioritize_teacher
+
+	exclude_teacher    []string
+	prioritize_teacher []string
+}
+
+func (g Globals) init() {
+	g.days_in_week = 7
+	g.mid_day = 1200
+	g.time_between_classes = 0
+	g.min_time = 0
+	g.max_time = 2400
+	g.break_start = 0
+	g.break_end = 0
+	g.topk = 10
+	g.rank_by_mid_day = false
+	g.rank_by_teacher = false
+	g.exclude_teacher = nil
+	g.prioritize_teacher = nil
 }
 
 // FUNCTIONS
@@ -110,17 +141,10 @@ func get_mid_day_score(a int) int {
 	return int(math.Abs(float64(1200 - a)))
 }
 
-func create_course(data string) []Course {
+func create_course(data string, params Globals) []Course {
 
 	// return a slice with either 1 or 2 courss, depending on whether the course
 	// needs a recitation
-
-	// TODO handle edge case where no classes, error
-	// TODO exclude teacher
-	// TODO minimum time between classes
-	// TODO latest possible time for a class
-	// TODO earliest possible time for a class
-	// TODO dead zone - comma separated times where no classes. Implement this as a list
 
 	courses := make([]Course, 0)
 	var lec_course Course
@@ -153,27 +177,10 @@ func create_course(data string) []Course {
 		}
 		return true
 	})
-	sort.SliceStable(lec_classes, func(i, j int) bool {
-		a := lec_classes[i]
-		b := lec_classes[j]
-		sum_a := 0
-		sum_b := 0
-
-		for _, constr := range a.Constraints {
-			sum_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
-		}
-
-		for _, constr := range b.Constraints {
-			sum_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
-		}
-
-		return sum_a < sum_b
-	})
-	if len(rec_classes) > 0 {
-		sort.SliceStable(rec_classes, func(i, j int) bool {
-			// i < j
-			a := rec_classes[i]
-			b := rec_classes[j]
+	if params.rank_by_mid_day {
+		sort.SliceStable(lec_classes, func(i, j int) bool {
+			a := lec_classes[i]
+			b := lec_classes[j]
 			sum_a := 0
 			sum_b := 0
 
@@ -187,16 +194,36 @@ func create_course(data string) []Course {
 
 			return sum_a < sum_b
 		})
+		if len(rec_classes) > 0 {
+			sort.SliceStable(rec_classes, func(i, j int) bool {
+				// i < j
+				a := rec_classes[i]
+				b := rec_classes[j]
+				sum_a := 0
+				sum_b := 0
+
+				for _, constr := range a.Constraints {
+					sum_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				}
+
+				for _, constr := range b.Constraints {
+					sum_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				}
+
+				return sum_a < sum_b
+			})
+		}
+	}
+	if params.rank_by_teacher {
+		// TODO
 	}
 
 	lec_course.Classes = lec_classes
 	rec_course.Classes = rec_classes
-
 	courses = append(courses, lec_course)
 	if len(rec_course.Classes) > 0 {
 		courses = append(courses, rec_course)
 	}
-
 	return courses
 }
 
@@ -218,7 +245,7 @@ func check_class_overlap(cls1, cls2 Class) bool {
 	var cnstr1 = cls1.Constraints
 	var cnstr2 = cls2.Constraints
 	// the constraints are already sorted by increasing day
-	for i := 0; i < DAYS_IN_WEEK; i++ {
+	for i := 0; i < 7; i++ {
 		if one_ptr == len(cnstr1) || two_ptr == len(cnstr2) {
 			return true
 		}
@@ -273,7 +300,7 @@ func DFS_recursive(options []Course, solution []Class, i int) []Class {
 	return nil
 }
 
-func search(options []Course) []Class {
+func search(options []Course, params Globals) []Class {
 	result := DFS_recursive(options, make([]Class, 0), 0)
 	return result
 }
@@ -308,28 +335,90 @@ func create_courses_list(infile string) []string {
 	return list
 }
 
+func parse_string_time(time string) int {
+	parsed_time := strings.ReplaceAll(time, ":", "")
+	int_time, err := strconv.Atoi(parsed_time)
+	if err != nil {
+		panic(err)
+	}
+	return int_time
+}
+
+func parse_string_time_slice(time_slice string) []int {
+	tuple := make([]int, 2)
+	parsed_time_slice := strings.ReplaceAll(time_slice, ":", "")
+	times := strings.Split(parsed_time_slice, "-")
+	for i := 0; i < 2; i++ {
+		time_int, err := strconv.Atoi(times[i])
+		if err != nil {
+			panic(err)
+		}
+		tuple[i] = time_int
+	}
+	return tuple
+
+}
+
 func main() {
 
 	var infile string
 	var outfile string
 	var topk int
+	var min_buffer int
+	var max_time_string string
+	var min_time_string string
+	var break_time_string string
 	var _url = "https://classes.colorado.edu/api/?page=fose&route=search"
 
+	flag.IntVar(&min_buffer, "min_buffer", 0, "Minimum time between classes, in minutes. Default is 0")
 	flag.IntVar(&topk, "topk", 10, "list of possible schedules to return, ranked by fit. Default is 10")
+	flag.StringVar(&max_time_string, "max_time", "", "latest time for any class. 24-hr format. Ex. 20:00")
+	flag.StringVar(&min_time_string, "min_time", "", "earliest time for any class. 24-hr format. Ex. 8:00.")
+	flag.StringVar(&break_time_string, "break_time", "", "time reserved for a break, or lunch. 24-hr format. Ex. 10:00-11:00")
 	flag.StringVar(&infile, "infile", "input.txt", "input file with each class on a new line.")
 	flag.StringVar(&outfile, "outfile", "output.txt", "output file with a list of new schedules")
 	flag.Parse()
 
+	var max_time *int = nil
+	var min_time *int = nil
+	var break_time *[]int = nil
+
+	if max_time_string != "" {
+		*max_time = parse_string_time(max_time_string)
+	}
+
+	if min_time_string != "" {
+		*min_time = parse_string_time(min_time_string)
+	}
+
+	if break_time_string != "" {
+		*break_time = parse_string_time_slice(break_time_string)
+	}
+
+	var params Globals
+	params.init()
+	if max_time != nil {
+		params.max_time = *max_time
+	}
+	if min_time != nil {
+		params.min_time = *min_time
+	}
+	if break_time != nil {
+		params.break_start = (*break_time)[0]
+
+	}
+
+	// search is applied as we create list
 	courses_list := create_courses_list(infile)
 	courses := make([]Course, 0)
 
 	for _, course_name := range courses_list {
 		body := create_query_body(course_name)
 		res_string := ping_classes(_url, body)
-		courses = append(courses, create_course(res_string)...)
+		courses = append(courses, create_course(res_string, params)...)
 	}
 
-	sched := search(courses)
+	sched := search(courses, params)
 
 	for i, class := range sched {
 		fmt.Println(i, ":")
