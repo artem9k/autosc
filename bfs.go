@@ -5,96 +5,14 @@ automatic scheduler for cu boulder classes (or honestly any other school)
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
-	"io"
-	"math"
-	"net/http"
-	"os"
 	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/tidwall/gjson"
 )
 
-// GLOBALS
-
-// CLASSES
-
-type Constraint struct {
-	// A class will have several of these, for each day
-	day     int
-	start_t int
-	end_t   int
-}
-
-type Class struct {
-	// represents a single class instance
-	// starting and ending at a certain time
-	// lect and rec are separate Class instances,
-	// however they will have different types set
-	Code        string
-	Name        string
-	Instructor  string
-	CreditHours int
-	Type        string
-	Constraints []Constraint
-}
-
-type Course struct {
-	// A course, ex PHYS 1110, has a list of specific Classes
-	// to choose from, each with its own instructor and times
-	Code    string
-	Name    string
-	Type    string
-	Classes []Class
-}
-
-type Globals struct {
-	// i use a struct for globals and params, since we have a lot of them
-	days_in_week         int
-	mid_day              int
-	time_between_classes int
-	min_time             int
-	max_time             int
-	break_start          int
-	break_end            int
-	topk                 int
-
-	rank_by_mid_day bool // add score by a function of the mid_day
-	rank_by_teacher bool // add score if the teacher is in prioritize_teacher
-
-	exclude_teacher    []string
-	prioritize_teacher []string
-}
-
-func (g Globals) init() {
-	g.days_in_week = 7
-	g.mid_day = 1200
-	g.time_between_classes = 0
-	g.min_time = 0
-	g.max_time = 2400
-	g.break_start = 0
-	g.break_end = 0
-	g.topk = 10
-	g.rank_by_mid_day = false
-	g.rank_by_teacher = false
-	g.exclude_teacher = nil
-	g.prioritize_teacher = nil
-}
-
 // FUNCTIONS
-
-func get_safe_atoi(num string) int {
-	var val, err = strconv.Atoi(num)
-	if err != nil {
-		panic(err)
-	}
-	return val
-}
 
 func create_class(data string) Class {
 	// todo handle if no results
@@ -131,14 +49,6 @@ func create_class(data string) Class {
 	})
 	new_class.Constraints = constraints
 	return new_class
-}
-
-func get_med_time(a, b int) int {
-	return (a + b) / 2
-}
-
-func get_mid_day_score(a int) int {
-	return int(math.Abs(float64(1200 - a)))
 }
 
 func create_course(data string, params Globals) []Course {
@@ -227,138 +137,6 @@ func create_course(data string, params Globals) []Course {
 	return courses
 }
 
-func check_constraint_overlap(c1, c2 Constraint) bool {
-	var start_overlap_1 = (c2.start_t < c1.start_t && c1.start_t < c2.end_t)
-	var start_overlap_2 = (c2.start_t < c2.start_t && c2.start_t < c2.end_t)
-	var end_overlap_1 = (c2.start_t < c1.end_t && c1.end_t < c2.end_t)
-	var end_overlap_2 = (c1.start_t < c2.end_t && c2.end_t < c1.end_t)
-
-	return !(end_overlap_1 || end_overlap_2 || start_overlap_1 || start_overlap_2)
-}
-
-func check_class_overlap(cls1, cls2 Class) bool {
-	if len(cls1.Constraints) == 0 || len(cls2.Constraints) == 0 {
-		return true
-	}
-	one_ptr := 0
-	two_ptr := 0
-	var cnstr1 = cls1.Constraints
-	var cnstr2 = cls2.Constraints
-	// the constraints are already sorted by increasing day
-	for i := 0; i < 7; i++ {
-		if one_ptr == len(cnstr1) || two_ptr == len(cnstr2) {
-			return true
-		}
-		d_1 := cnstr1[one_ptr].day
-		d_2 := cnstr2[two_ptr].day
-		if d_1 == i && d_2 == i {
-			return check_constraint_overlap(cnstr1[one_ptr], cnstr2[two_ptr])
-		} else if cnstr1[one_ptr].day == i {
-			one_ptr += 1
-		} else if cnstr2[two_ptr].day == i {
-			two_ptr += 1
-		}
-	}
-	return true
-}
-
-func pop(stack []interface{}) []interface{} {
-	return stack[:len(stack)-1]
-}
-
-func push(stack []interface{}, new_item interface{}) []interface{} {
-	return append(stack, new_item)
-}
-
-func check_class_against_list(classes_list []Class, new_class Class) bool {
-	if len(classes_list) == 0 {
-		return true
-	}
-	for _, class := range classes_list {
-		if !check_class_overlap(class, new_class) {
-			return false
-		}
-	}
-	return true
-}
-
-func DFS_recursive(options []Course, solution []Class, i int) []Class {
-	// search complete
-	if i == len(options) {
-		return solution
-	}
-	for _, new_class := range options[i].Classes {
-		// compare the class with our constr
-		check := check_class_against_list(solution, new_class)
-		if check {
-			next := DFS_recursive(options, append(solution, new_class), i+1)
-			if next != nil {
-				return next
-			}
-		}
-	}
-	return nil
-}
-
-func search(options []Course, params Globals) []Class {
-	result := DFS_recursive(options, make([]Class, 0), 0)
-	return result
-}
-
-func create_query_body(class string) string {
-	var body string = "{\"other\":{\"srcdb\":\"2227\"},\"criteria\":[{\"field\":\"alias\",\"value\":\"" + class + "\"}]}"
-	return body
-}
-
-func ping_classes(_url, body string) string {
-	res, _ := http.Post(_url, "application/json", bytes.NewBufferString(body))
-	defer res.Body.Close()
-	res_body, err := io.ReadAll(res.Body)
-	if err != nil {
-		panic(err)
-	}
-	var res_string = string(res_body)
-	return res_string
-}
-
-func create_courses_list(infile string) []string {
-	list := make([]string, 0)
-	file, err := os.Open(infile)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		list = append(list, scanner.Text())
-	}
-	return list
-}
-
-func parse_string_time(time string) int {
-	parsed_time := strings.ReplaceAll(time, ":", "")
-	int_time, err := strconv.Atoi(parsed_time)
-	if err != nil {
-		panic(err)
-	}
-	return int_time
-}
-
-func parse_string_time_slice(time_slice string) []int {
-	tuple := make([]int, 2)
-	parsed_time_slice := strings.ReplaceAll(time_slice, ":", "")
-	times := strings.Split(parsed_time_slice, "-")
-	for i := 0; i < 2; i++ {
-		time_int, err := strconv.Atoi(times[i])
-		if err != nil {
-			panic(err)
-		}
-		tuple[i] = time_int
-	}
-	return tuple
-
-}
-
 func main() {
 
 	var infile string
@@ -383,10 +161,8 @@ func main() {
 	flag.StringVar(&break_time_string, "break_time", "", "time reserved for a break, or lunch. 24-hr format. Ex. 10:00-11:00")
 	flag.StringVar(&infile, "infile", "input.txt", "input file with each class on a new line.")
 	flag.StringVar(&outfile, "outfile", "output.txt", "output file with a list of new schedules")
-	flag.StringVar(&outfile, "outfile", "output.txt", "output file with a list of new schedules")
-	flag.StringVar(&include_teacher_string, "rank_by_teacher", "", "list of teachers to include, comma-separated, spaces after commas. Ex. E.Musk, K.Kardashian")
-	flag.StringVar(&exclude_teacher_string, "rank_by_teacher", "", "list of teachers to exclude, comma-separated, spaces after commas. Ex. E.Musk, K.Kardashian")
-	flag.StringVar(&outfile, "outfile", "output.txt", "output file with a list of new schedules")
+	flag.StringVar(&include_teacher_string, "include_teacher", "", "list of teachers to include, comma-separated, spaces after commas. Ex. E.Musk, K.Kardashian")
+	flag.StringVar(&exclude_teacher_string, "exclude_teacher", "", "list of teachers to exclude, comma-separated, spaces after commas. Ex. E.Musk, K.Kardashian")
 	flag.StringVar(&mid_day, "mid_day", "12:00", "time of the day to prioritize classes from. 24-hr format. Ex. 12:00")
 
 	flag.BoolVar(&rank_by_teacher, "rank_by_teacher", false, "whether to rank results by included/excluded teachers. true/false. For this to work, you must specify lists of teachers to include/exclude using --include_teacher or --exclude_teacher.")
@@ -433,11 +209,14 @@ func main() {
 		courses = append(courses, create_course(res_string, params)...)
 	}
 
-	sched := search(courses, params)
+	schedules := search(courses, params)
 
-	for i, class := range sched {
-		fmt.Println(i, ":")
-		fmt.Println(class)
+	for i, schedule := range schedules {
+		if len(schedule) != 0 {
+			fmt.Println("-={CHOICE", i+1, "}=-")
+			for j, class := range schedule {
+				fmt.Println(j, ":", class)
+			}
+		}
 	}
-
 }
