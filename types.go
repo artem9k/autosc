@@ -60,7 +60,7 @@ func (g Globals) init() {
 	g.break_start = 0
 	g.break_end = 0
 	g.topk = 10
-	g.rank_by_mid_day = false
+	g.rank_by_mid_day = true
 	g.rank_by_teacher = false
 	g.exclude_teacher = nil
 	g.prioritize_teacher = nil

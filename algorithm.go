@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"math"
+	"reflect"
+	"sort"
 )
 
 const topk int = 10
@@ -100,6 +102,7 @@ func alg_reset_course_list(courses []Course) {
 }
 
 func DFS_iterative(options []Course, solution [][]Class) [][]Class {
+	// wip iterative backtracking algorithm
 
 	if options == nil || solution == nil {
 		return nil
@@ -173,35 +176,94 @@ func DFS_iterative(options []Course, solution [][]Class) [][]Class {
 	return nil
 }
 
-func DFS_recursive(options []Course, solution []Class, i int) []Class {
-	// search complete
-	if i == len(options) {
-		return solution
-	}
-	for j := 0; j < len(options[i].Classes); j++ {
-		// compare the class with our constr
-		check := check_class_against_list(solution, options[i].Classes[j])
-		if check && !options[i].Classes[j].Used {
-			options[i].Classes[j].Used = true
-			next := DFS_recursive(options, append(solution, options[i].Classes[j]), i+1)
-			if next != nil {
-				return next
-			} else {
-				options[i].Classes[j].Used = false
+func check_solutions(solutions [][]Class, new_solution []Class) bool {
+	fmt.Println(len(new_solution))
+	for _, solution := range solutions {
+		if len(solution) == len(new_solution) {
+
+			sort.SliceStable(solution, func(i, j int) bool {
+				a := solution[i]
+				b := solution[j]
+				sum_a := 0
+				sum_b := 0
+
+				for _, constr := range a.Constraints {
+					sum_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				}
+
+				for _, constr := range b.Constraints {
+					sum_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				}
+
+				return sum_a < sum_b
+			})
+
+			sort.SliceStable(new_solution, func(i, j int) bool {
+				a := new_solution[i]
+				b := new_solution[j]
+				sum_a := 0
+				sum_b := 0
+
+				for _, constr := range a.Constraints {
+					sum_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				}
+
+				for _, constr := range b.Constraints {
+					sum_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				}
+
+				return sum_a < sum_b
+			})
+
+			if reflect.DeepEqual(solution, new_solution) {
+				return false
 			}
 
 		}
 	}
+	return true
+}
+
+func check_class_against_solutions(curr_solution []Class, solutions [][]Class) bool {
+	for _, s := range solutions {
+		if reflect.DeepEqual(s, curr_solution) {
+			return false
+		}
+		if len(s) == 0 {
+			return true
+		}
+	}
+	return true
+}
+
+func DFS_recursive(options []Course, solution []Class, solutions_so_far [][]Class, i int) []Class {
+	// search complete
+	if i == len(options) {
+		check1 := check_class_against_solutions(solution, solutions_so_far)
+		if check1 {
+			return solution
+		} else {
+			return nil
+		}
+	}
+	for j := 0; j < len(options[i].Classes); j++ {
+		// compare the class with our constr
+		check2 := check_class_against_list(solution, options[i].Classes[j])
+		if check2 && !options[i].Classes[j].Used {
+			next := DFS_recursive(options, append(solution, options[i].Classes[j]), solutions_so_far, i+1)
+			if next != nil {
+				return next
+			}
+		}
+	}
 	return nil
 }
+
 func search(options []Course, params Globals) [][]Class {
 	solution := make([][]Class, topk)
 	for i := 0; i < topk; i++ {
 		solution[i] = make([]Class, 0)
-		solution[i] = DFS_recursive(options, solution[i], 0)
-		if solution[i] == nil {
-			fmt.Println("nil", i)
-		}
+		solution[i] = DFS_recursive(options, solution[i], solution, 0)
 	}
 
 	return solution

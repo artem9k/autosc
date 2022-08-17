@@ -22,7 +22,6 @@ func create_class(data string) Class {
 	if instr == "" {
 		instr = "TA"
 	}
-
 	var _type = gjson.Get(data, "schd").Str
 	var code = gjson.Get(data, "code").Str
 	var name = gjson.Get(data, "title").Str
@@ -87,10 +86,27 @@ func create_course(data string, params Globals) []Course {
 		}
 		return true
 	})
-	if params.rank_by_mid_day {
-		sort.SliceStable(lec_classes, func(i, j int) bool {
-			a := lec_classes[i]
-			b := lec_classes[j]
+	sort.SliceStable(lec_classes, func(i, j int) bool {
+		a := lec_classes[i]
+		b := lec_classes[j]
+		sum_a := 0
+		sum_b := 0
+
+		for _, constr := range a.Constraints {
+			sum_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+		}
+
+		for _, constr := range b.Constraints {
+			sum_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+		}
+
+		return sum_a < sum_b
+	})
+	if len(rec_classes) > 0 {
+		sort.SliceStable(rec_classes, func(i, j int) bool {
+			// i < j
+			a := rec_classes[i]
+			b := rec_classes[j]
 			sum_a := 0
 			sum_b := 0
 
@@ -104,28 +120,6 @@ func create_course(data string, params Globals) []Course {
 
 			return sum_a < sum_b
 		})
-		if len(rec_classes) > 0 {
-			sort.SliceStable(rec_classes, func(i, j int) bool {
-				// i < j
-				a := rec_classes[i]
-				b := rec_classes[j]
-				sum_a := 0
-				sum_b := 0
-
-				for _, constr := range a.Constraints {
-					sum_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
-				}
-
-				for _, constr := range b.Constraints {
-					sum_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
-				}
-
-				return sum_a < sum_b
-			})
-		}
-	}
-	if params.rank_by_teacher {
-		// TODO
 	}
 
 	lec_course.Classes = lec_classes
