@@ -133,23 +133,23 @@ func create_course(data string, params Globals) []Course {
 
 func main() {
 
-	var infile string          // input file of newline-separated class names
-	var outfile string         // file printed to when print_to_outfile is enabled. default outfile.txt
-	var topk int               // how many schedules to generate
-	var min_buffer int         // minimum time between classes
-	var min_time_string string // earliest time
-	var max_time_string string // latest time
-	var break_time_string string
-	var include_teacher_string string
-	var exclude_teacher_string string
-	var mid_day string
-	var rank_by_teacher bool
-	var rank_by_mid_day bool
-	//var print_to_outfile bool // print the command-line output to outfile.txt
-	//var draw_schedules bool   // make pngs of schedules. default true
+	var infile string                 // input file of newline-separated class names
+	var outfile string                // file printed to when print_to_outfile is enabled. default outfile.txt
+	var topk int                      // how many schedules to generate
+	var time_between_classes int      // minimum time between classes
+	var min_time_string string        // earliest time
+	var max_time_string string        // latest time
+	var break_time_string string      // time for break, separated by a -
+	var include_teacher_string string // teachers to rank highly
+	var exclude_teacher_string string // teachers to exclude
+	var mid_day_string string         // which time to cluster classes near
+	var rank_by_teacher bool          // whether to rank by teachers in include_teachers_string
+	var rank_by_mid_day bool          // whether to bias the classes by the mid_day variable. Defaults to True
+	var print_to_outfile bool         // print the command-line output to outfile.txt. Defaults to false
+	var draw_schedules bool           // make pngs of schedules. Defaults to true
 	var _url = "https://classes.colorado.edu/api/?page=fose&route=search"
 
-	flag.IntVar(&min_buffer, "min_buffer", 0, "Minimum time between classes, in minutes. Default is 0")
+	flag.IntVar(&time_between_classes, "min_buffer", 0, "Minimum time between classes, in minutes. Default is 0")
 	flag.IntVar(&topk, "topk", 10, "list of possible schedules to return, ranked by fit. Default is 10")
 
 	flag.StringVar(&max_time_string, "max_time", "", "latest time for any class. 24-hr format. Ex. 20:00")
@@ -159,7 +159,7 @@ func main() {
 	flag.StringVar(&outfile, "outfile", "output.txt", "output file with a list of new schedules")
 	flag.StringVar(&include_teacher_string, "include_teacher", "", "list of teachers to include, comma-separated, spaces after commas. Ex. E.Musk, K.Kardashian")
 	flag.StringVar(&exclude_teacher_string, "exclude_teacher", "", "list of teachers to exclude, comma-separated, spaces after commas. Ex. E.Musk, K.Kardashian")
-	flag.StringVar(&mid_day, "mid_day", "12:00", "time of the day to prioritize classes from. 24-hr format. Ex. 12:00")
+	flag.StringVar(&mid_day_string, "mid_day", "", "time of the day to prioritize classes from. 24-hr format. Ex. 12:00")
 
 	flag.BoolVar(&rank_by_teacher, "rank_by_teacher", false, "whether to rank results by included/excluded teachers. true/false. For this to work, you must specify lists of teachers to include/exclude using --include_teacher or --exclude_teacher.")
 	flag.BoolVar(&rank_by_mid_day, "rank_by_mid_day", false, "whether to prioritize classes from around the time specified by --mid_day (default is 12:00)")
@@ -168,6 +168,7 @@ func main() {
 
 	var max_time *int = nil
 	var min_time *int = nil
+	var mid_day *int = nil
 	var break_time *[]int = nil
 
 	if max_time_string != "" {
@@ -178,21 +179,35 @@ func main() {
 		*min_time = parse_string_time(min_time_string)
 	}
 
+	if mid_day_string != "" {
+		*mid_day = parse_string_time(mid_day_string)
+	}
+
 	if break_time_string != "" {
 		*break_time = parse_string_time_slice(break_time_string)
 	}
 
 	var params Globals
 	params.init()
+	params.rank_by_mid_day = rank_by_mid_day
+	params.rank_by_teacher = rank_by_teacher
+	params.time_between_classes = time_between_classes
+	params.topk = topk
+
 	if max_time != nil {
 		params.max_time = *max_time
 	}
+
 	if min_time != nil {
 		params.min_time = *min_time
 	}
+
+	if mid_day != nil {
+		params.mid_day = *mid_day
+	}
+
 	if break_time != nil {
 		params.break_start = (*break_time)[0]
-
 	}
 
 	// search is applied as we create list
@@ -206,10 +221,17 @@ func main() {
 	}
 
 	schedules := search(courses, params)
-	pprint_schedules(schedules)
-	pprint_schedules_to_file(schedules)
 
-	for i, schedule := range schedules {
-		render(schedule, i+1)
+	print_schedules(schedules)
+
+	if print_to_outfile {
+		print_schedules_to_file(schedules, outfile)
 	}
+
+	if draw_schedules {
+		for i, schedule := range schedules {
+			render(schedule, i+1)
+		}
+	}
+
 }

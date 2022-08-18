@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func pprint_schedules(schedules [][]Class) {
+func print_schedules(schedules [][]Class) {
 	days := [5]string{"MON", "TUE", "WED", "THU", "FRI"}
 	for i, schedule := range schedules {
 		fmt.Printf("OPTION %d\n", i+1)
@@ -27,10 +27,10 @@ func pprint_schedules(schedules [][]Class) {
 	}
 }
 
-func pprint_schedules_to_file(schedules [][]Class) {
+func print_schedules_to_file(schedules [][]Class, file string) {
 	days := [5]string{"MON", "TUE", "WED", "THU", "FRI"}
 
-	f, err := os.OpenFile("output.txt", os.O_WRONLY|os.O_CREATE, 0600)
+	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		panic(err)
 	}

@@ -47,8 +47,8 @@ type Globals struct {
 	rank_by_mid_day bool // add score by a function of the mid_day
 	rank_by_teacher bool // add score if the teacher is in prioritize_teacher
 
-	exclude_teacher    []string
-	prioritize_teacher []string
+	include_list []string
+	exclude_list []string
 }
 
 func (g Globals) init() {
@@ -62,6 +62,14 @@ func (g Globals) init() {
 	g.topk = 10
 	g.rank_by_mid_day = true
 	g.rank_by_teacher = false
-	g.exclude_teacher = nil
-	g.prioritize_teacher = nil
+	g.exclude_list = nil
+	g.include_list = nil
+}
+
+func (g Globals) setIncludeList() {
+
+}
+
+func (g Globals) setExcludeList() {
+
 }

@@ -190,7 +190,7 @@ func DFS_recursive(options []Course, solution []Class, solutions_so_far [][]Clas
 
 func search(options []Course, params Globals) [][]Class {
 	solution := make([][]Class, topk)
-	for i := 0; i < topk; i++ {
+	for i := 0; i < params.topk; i++ {
 		solution[i] = make([]Class, 0)
 		solution[i] = DFS_recursive(options, solution[i], solution, 0)
 	}
