@@ -12,11 +12,16 @@ import (
 )
 
 func pprint_schedules(schedules [][]Class) {
+	days := [5]string{"MON", "TUE", "WED", "THU", "FRI"}
 	for i, schedule := range schedules {
+		fmt.Printf("OPTION %d\n", i+1)
 		if len(schedule) != 0 {
-			fmt.Println("-={CHOICE", i+1, "}=-")
 			for j, class := range schedule {
-				fmt.Println(j, ":", class)
+				fmt.Printf("%d: %s %s %s ", j, class.Name, class.Code, class.Instructor)
+				for _, constr := range class.Constraints {
+					fmt.Printf("%s %d-%d ", days[constr.day], constr.start_t, constr.end_t)
+				}
+				fmt.Println()
 			}
 		}
 	}

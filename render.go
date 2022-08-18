@@ -129,8 +129,6 @@ func render(classes []Class, num_schedule int) {
 			y_2 := float64(100 + (end_t - 600))
 			y := y_1
 			l := y_2 - y_1
-			fmt.Println(int(y_2 / 100))
-			fmt.Println(int(y_1 / 100))
 			if int(y_2/100) == int(y_1/100) {
 				l = l * 100 / 60
 			}
