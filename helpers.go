@@ -27,6 +27,27 @@ func pprint_schedules(schedules [][]Class) {
 	}
 }
 
+func pprint_schedules_to_file(schedules [][]Class) {
+	days := [5]string{"MON", "TUE", "WED", "THU", "FRI"}
+
+	f, err := os.OpenFile("output.txt", os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		panic(err)
+	}
+	for i, schedule := range schedules {
+		fmt.Fprintf(f, "OPTION %d\n", i+1)
+		if len(schedule) != 0 {
+			for j, class := range schedule {
+				fmt.Fprintf(f, "%d: %s %s %s ", j, class.Name, class.Code, class.Instructor)
+				for _, constr := range class.Constraints {
+					fmt.Fprintf(f, "%s %d-%d ", days[constr.day], constr.start_t, constr.end_t)
+				}
+				fmt.Fprintln(f)
+			}
+		}
+	}
+}
+
 func get_safe_atoi(num string) int {
 	var val, err = strconv.Atoi(num)
 	if err != nil {

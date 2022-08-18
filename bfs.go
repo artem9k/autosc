@@ -133,18 +133,20 @@ func create_course(data string, params Globals) []Course {
 
 func main() {
 
-	var infile string
-	var outfile string
-	var topk int
-	var min_buffer int
-	var max_time_string string
-	var min_time_string string
+	var infile string          // input file of newline-separated class names
+	var outfile string         // file printed to when print_to_outfile is enabled. default outfile.txt
+	var topk int               // how many schedules to generate
+	var min_buffer int         // minimum time between classes
+	var min_time_string string // earliest time
+	var max_time_string string // latest time
 	var break_time_string string
 	var include_teacher_string string
 	var exclude_teacher_string string
 	var mid_day string
 	var rank_by_teacher bool
 	var rank_by_mid_day bool
+	//var print_to_outfile bool // print the command-line output to outfile.txt
+	//var draw_schedules bool   // make pngs of schedules. default true
 	var _url = "https://classes.colorado.edu/api/?page=fose&route=search"
 
 	flag.IntVar(&min_buffer, "min_buffer", 0, "Minimum time between classes, in minutes. Default is 0")
@@ -205,6 +207,7 @@ func main() {
 
 	schedules := search(courses, params)
 	pprint_schedules(schedules)
+	pprint_schedules_to_file(schedules)
 
 	for i, schedule := range schedules {
 		render(schedule, i+1)

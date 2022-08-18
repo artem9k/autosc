@@ -152,8 +152,3 @@ func render(classes []Class, num_schedule int) {
 	dc.SavePNG(filepath.Join(".", "schedules", fmt.Sprintf("schedule_%d.png", num_schedule)))
 
 }
-
-// alternatively, pretty-print to a file. the file will have the output of pretty_print()
-func print_to_file(cls []Class) {
-
-}
