@@ -1,5 +1,5 @@
 /**
-automatic scheduler for cu boulder classes (or honestly any other school)
+automatic scheduler for cu boulder classes
 **/
 
 package main
@@ -204,7 +204,9 @@ func main() {
 	}
 
 	schedules := search(courses, params)
-
 	pprint_schedules(schedules)
-	render(schedules[0])
+
+	for i, schedule := range schedules {
+		render(schedule, i+1)
+	}
 }

@@ -2,3 +2,6 @@ input.txt
 output.txt
 *.swp
 go.sum
+*png
+*jpg
+*sum
