@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -10,6 +11,17 @@ import (
 	"strings"
 )
 
+func pprint_schedules(schedules [][]Class) {
+	for i, schedule := range schedules {
+		if len(schedule) != 0 {
+
+			fmt.Println("-={CHOICE", i+1, "}=-")
+			for j, class := range schedule {
+				fmt.Println(j, ":", class)
+			}
+		}
+	}
+}
 func get_safe_atoi(num string) int {
 	var val, err = strconv.Atoi(num)
 	if err != nil {

@@ -205,12 +205,6 @@ func main() {
 
 	schedules := search(courses, params)
 
-	for i, schedule := range schedules {
-		if len(schedule) != 0 {
-			fmt.Println("-={CHOICE", i+1, "}=-")
-			for j, class := range schedule {
-				fmt.Println(j, ":", class)
-			}
-		}
-	}
+	pprint_schedules(schedules)
+	render(schedules[0])
 }

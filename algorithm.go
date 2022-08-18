@@ -18,12 +18,16 @@ func get_mid_day_score(a int) int {
 }
 
 func check_constraint_overlap(c1, c2 Constraint) bool {
+
+	// special case where they start at the same time
+	var eq = c2.start_t == c1.start_t && c2.end_t == c1.end_t
+
 	var start_overlap_1 = (c2.start_t < c1.start_t && c1.start_t < c2.end_t)
 	var start_overlap_2 = (c2.start_t < c2.start_t && c2.start_t < c2.end_t)
 	var end_overlap_1 = (c2.start_t < c1.end_t && c1.end_t < c2.end_t)
 	var end_overlap_2 = (c1.start_t < c2.end_t && c2.end_t < c1.end_t)
 
-	return !(end_overlap_1 || end_overlap_2 || start_overlap_1 || start_overlap_2)
+	return !(end_overlap_1 || end_overlap_2 || start_overlap_1 || start_overlap_2 || eq)
 }
 
 func check_class_overlap(cls1, cls2 Class) bool {
@@ -164,15 +168,10 @@ func DFS_iterative(options []Course, solution [][]Class) [][]Class {
 
 			} else {
 				// dont push anything
-
 				// is v the last class?
-
 			}
-
 		}
-
 	}
-
 	return nil
 }
 
@@ -265,6 +264,5 @@ func search(options []Course, params Globals) [][]Class {
 		solution[i] = make([]Class, 0)
 		solution[i] = DFS_recursive(options, solution[i], solution, 0)
 	}
-
 	return solution
 }
