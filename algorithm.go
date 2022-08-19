@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 	"reflect"
 	"sort"
@@ -17,20 +16,22 @@ func get_mid_day_score(a int) int {
 	return int(math.Abs(float64(1200 - a)))
 }
 
-func check_constraint_overlap(c1, c2 Constraint) bool {
+func check_constraint_overlap(c1, c2 Constraint, params Globals) bool {
+
+	dist := params.time_between_classes
 
 	// special case where they start at the same time
 	var eq = c2.start_t == c1.start_t && c2.end_t == c1.end_t
 
-	var start_overlap_1 = (c2.start_t < c1.start_t && c1.start_t < c2.end_t)
-	var start_overlap_2 = (c2.start_t < c2.start_t && c2.start_t < c2.end_t)
-	var end_overlap_1 = (c2.start_t < c1.end_t && c1.end_t < c2.end_t)
-	var end_overlap_2 = (c1.start_t < c2.end_t && c2.end_t < c1.end_t)
+	var start_overlap_1 = (c2.start_t+dist < c1.start_t && c1.start_t+dist < c2.end_t)
+	var start_overlap_2 = (c2.start_t+dist < c2.start_t && c2.start_t+dist < c2.end_t)
+	var end_overlap_1 = (c2.start_t+dist < c1.end_t && c1.end_t+dist < c2.end_t)
+	var end_overlap_2 = (c1.start_t+dist < c2.end_t && c2.end_t+dist < c1.end_t)
 
 	return !(end_overlap_1 || end_overlap_2 || start_overlap_1 || start_overlap_2 || eq)
 }
 
-func check_class_overlap(cls1, cls2 Class) bool {
+func check_class_overlap(cls1, cls2 Class, params Globals) bool {
 	if len(cls1.Constraints) == 0 || len(cls2.Constraints) == 0 {
 		return true
 	}
@@ -46,7 +47,7 @@ func check_class_overlap(cls1, cls2 Class) bool {
 		d_1 := cnstr1[one_ptr].day
 		d_2 := cnstr2[two_ptr].day
 		if d_1 == i && d_2 == i {
-			return check_constraint_overlap(cnstr1[one_ptr], cnstr2[two_ptr])
+			return check_constraint_overlap(cnstr1[one_ptr], cnstr2[two_ptr], params)
 		} else if cnstr1[one_ptr].day == i {
 			one_ptr += 1
 		} else if cnstr2[two_ptr].day == i {
@@ -74,12 +75,12 @@ func push_int(stack []int, new_item int) []int {
 	return append(stack, new_item)
 }
 
-func check_class_against_list(classes_list []Class, new_class Class) bool {
+func check_class_against_list(classes_list []Class, new_class Class, params Globals) bool {
 	if len(classes_list) == 0 {
 		return true
 	}
 	for _, class := range classes_list {
-		if !check_class_overlap(class, new_class) {
+		if !check_class_overlap(class, new_class, params) {
 			return false
 		}
 	}
@@ -106,7 +107,6 @@ func alg_reset_course_list(courses []Course) {
 }
 
 func check_solutions(solutions [][]Class, new_solution []Class) bool {
-	fmt.Println(len(new_solution))
 	for _, solution := range solutions {
 		if len(solution) == len(new_solution) {
 
@@ -153,19 +153,7 @@ func check_solutions(solutions [][]Class, new_solution []Class) bool {
 	return true
 }
 
-func check_class_against_solutions(curr_solution []Class, solutions [][]Class) bool {
-	for _, s := range solutions {
-		if reflect.DeepEqual(s, curr_solution) {
-			return false
-		}
-		if len(s) == 0 {
-			return true
-		}
-	}
-	return true
-}
-
-func DFS_recursive(options []Course, solution []Class, solutions_so_far [][]Class, i int) []Class {
+func DFS_recursive(options []Course, solution []Class, solutions_so_far [][]Class, i int, params Globals) []Class {
 	// search complete
 	if i == len(options) {
 		check1 := check_class_against_solutions(solution, solutions_so_far)
@@ -176,10 +164,10 @@ func DFS_recursive(options []Course, solution []Class, solutions_so_far [][]Clas
 		}
 	}
 	for j := 0; j < len(options[i].Classes); j++ {
-		// compare the class with our constr
-		check2 := check_class_against_list(solution, options[i].Classes[j])
+		check2 := check_class_against_list(solution, options[i].Classes[j], params)
+
 		if check2 && !options[i].Classes[j].Used {
-			next := DFS_recursive(options, append(solution, options[i].Classes[j]), solutions_so_far, i+1)
+			next := DFS_recursive(options, append(solution, options[i].Classes[j]), solutions_so_far, i+1, params)
 			if next != nil {
 				return next
 			}
@@ -192,7 +180,7 @@ func search(options []Course, params Globals) [][]Class {
 	solution := make([][]Class, topk)
 	for i := 0; i < params.topk; i++ {
 		solution[i] = make([]Class, 0)
-		solution[i] = DFS_recursive(options, solution[i], solution, 0)
+		solution[i] = DFS_recursive(options, solution[i], solution, 0, params)
 	}
 	return solution
 }

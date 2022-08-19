@@ -7,6 +7,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"reflect"
 	"sort"
 
 	"github.com/tidwall/gjson"
@@ -50,6 +51,65 @@ func create_class(data string) Class {
 	return new_class
 }
 
+func check_class_against_solutions(curr_solution []Class, solutions [][]Class) bool {
+	for _, s := range solutions {
+		if reflect.DeepEqual(s, curr_solution) {
+			return false
+		}
+		if len(s) == 0 {
+			return true
+		}
+	}
+	return true
+}
+
+func check_class_exclude_list(cls Class, params Globals) bool {
+	for _, teacher := range params.exclude_list {
+		if teacher == cls.Instructor {
+			return false
+		}
+	}
+	return true
+}
+
+func check_min_time(cls Class, params Globals) bool {
+	min_time := params.min_time
+	for _, constr := range cls.Constraints {
+		if constr.start_t < min_time {
+			return false
+		}
+	}
+
+	return true
+}
+
+func check_max_time(cls Class, params Globals) bool {
+	max_time := params.max_time
+	for _, constr := range cls.Constraints {
+		if constr.end_t > max_time {
+			return false
+		}
+	}
+
+	return true
+}
+
+func check_break_overlap(c1 Constraint, break_start, break_end int) bool {
+
+	// special case where they start at the same time
+	var eq = break_start == c1.start_t && break_end == c1.end_t
+	// break starts inside a class
+	var overlap_1 = (break_start > c1.start_t && break_end > c1.end_t)
+	// break ends inside a class
+	var overlap_2 = (break_start < c1.start_t && break_end < c1.end_t)
+	// class is inside break
+	var overlap_3 = (break_start < c1.start_t && break_end > c1.end_t)
+	// break is inside class
+	var overlap_4 = (break_start > c1.start_t && break_end < c1.end_t)
+
+	return !(overlap_1 || overlap_2 || overlap_3 || overlap_4 || eq)
+}
+
 func create_course(data string, params Globals) []Course {
 
 	// return a slice with either 1 or 2 courss, depending on whether the course
@@ -86,6 +146,56 @@ func create_course(data string, params Globals) []Course {
 		}
 		return true
 	})
+
+	lec_classes_pruned := make([]Class, 0)
+	rec_classes_pruned := make([]Class, 0)
+
+	for _, class := range lec_classes {
+		check := true
+		if params.exclude_list != nil {
+			check = check && check_class_exclude_list(class, params)
+		}
+		if params.min_time > 0 {
+			check = check && check_min_time(class, params)
+		}
+		if params.max_time < 2400 {
+			check = check && check_max_time(class, params)
+		}
+		if params.break_end != 0 {
+			for _, constr := range class.Constraints {
+				check = check && check_break_overlap(constr, params.break_start, params.break_end)
+			}
+		}
+		if check {
+			lec_classes_pruned = append(lec_classes_pruned, class)
+		}
+	}
+
+	lec_classes = lec_classes_pruned
+	if len(rec_classes) > 0 {
+		for _, class := range rec_classes {
+			check := true
+			if params.exclude_list != nil {
+				check = check && check_class_exclude_list(class, params)
+			}
+			if params.min_time > 0 {
+				check = check && check_min_time(class, params)
+			}
+			if params.max_time < 2400 {
+				check = check && check_max_time(class, params)
+			}
+			if params.break_end != 0 {
+				for _, constr := range class.Constraints {
+					check = check && check_break_overlap(constr, params.break_start, params.break_end)
+				}
+			}
+			if check {
+				rec_classes_pruned = append(rec_classes_pruned, class)
+			}
+		}
+		rec_classes = rec_classes_pruned
+	}
+
 	sort.SliceStable(lec_classes, func(i, j int) bool {
 		a := lec_classes[i]
 		b := lec_classes[j]
@@ -102,6 +212,7 @@ func create_course(data string, params Globals) []Course {
 
 		return sum_a < sum_b
 	})
+
 	if len(rec_classes) > 0 {
 		sort.SliceStable(rec_classes, func(i, j int) bool {
 			// i < j
@@ -169,6 +280,7 @@ func main() {
 	var max_time *int = nil
 	var min_time *int = nil
 	var mid_day *int = nil
+
 	var break_time *[]int = nil
 
 	if max_time_string != "" {
@@ -185,10 +297,10 @@ func main() {
 
 	if break_time_string != "" {
 		*break_time = parse_string_time_slice(break_time_string)
+
 	}
 
-	var params Globals
-	params.init()
+	params := globals_init()
 	params.rank_by_mid_day = rank_by_mid_day
 	params.rank_by_teacher = rank_by_teacher
 	params.time_between_classes = time_between_classes
@@ -208,6 +320,10 @@ func main() {
 
 	if break_time != nil {
 		params.break_start = (*break_time)[0]
+	}
+
+	if break_time != nil {
+		params.break_end = (*break_time)[1]
 	}
 
 	// search is applied as we create list

@@ -51,7 +51,8 @@ type Globals struct {
 	exclude_list []string
 }
 
-func (g Globals) init() {
+func globals_init() Globals {
+	var g Globals
 	g.days_in_week = 7
 	g.mid_day = 1200
 	g.time_between_classes = 0
@@ -64,6 +65,8 @@ func (g Globals) init() {
 	g.rank_by_teacher = false
 	g.exclude_list = nil
 	g.include_list = nil
+
+	return g
 }
 
 func (g Globals) setIncludeList() {
