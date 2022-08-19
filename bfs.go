@@ -196,41 +196,65 @@ func create_course(data string, params Globals) []Course {
 		rec_classes = rec_classes_pruned
 	}
 
-	sort.SliceStable(lec_classes, func(i, j int) bool {
-		a := lec_classes[i]
-		b := lec_classes[j]
-		sum_a := 0
-		sum_b := 0
-
-		for _, constr := range a.Constraints {
-			sum_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
-		}
-
-		for _, constr := range b.Constraints {
-			sum_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
-		}
-
-		return sum_a < sum_b
-	})
-
-	if len(rec_classes) > 0 {
-		sort.SliceStable(rec_classes, func(i, j int) bool {
-			// i < j
-			a := rec_classes[i]
-			b := rec_classes[j]
-			sum_a := 0
-			sum_b := 0
+	if params.rank_by_mid_day {
+		sort.SliceStable(lec_classes, func(i, j int) bool {
+			a := lec_classes[i]
+			b := lec_classes[j]
+			score_a := 0
+			score_b := 0
 
 			for _, constr := range a.Constraints {
-				sum_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				score_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
 			}
 
 			for _, constr := range b.Constraints {
-				sum_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				score_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
 			}
 
-			return sum_a < sum_b
+			if params.rank_by_teacher {
+				for _, teacher := range params.include_list {
+					if lec_classes[i].Instructor == teacher {
+						score_a += 750
+					}
+					if lec_classes[j].Instructor == teacher {
+						score_b += 750
+					}
+				}
+			}
+
+			return score_a < score_b
 		})
+
+		if len(rec_classes) > 0 {
+			sort.SliceStable(rec_classes, func(i, j int) bool {
+				// i < j
+				a := rec_classes[i]
+				b := rec_classes[j]
+				score_a := 0
+				score_b := 0
+
+				for _, constr := range a.Constraints {
+					score_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				}
+
+				for _, constr := range b.Constraints {
+					score_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				}
+
+				if params.rank_by_teacher {
+					for _, teacher := range params.include_list {
+						if lec_classes[i].Instructor == teacher {
+							score_a += 750
+						}
+						if lec_classes[j].Instructor == teacher {
+							score_b += 750
+						}
+					}
+				}
+
+				return score_a < score_b
+			})
+		}
 	}
 
 	lec_course.Classes = lec_classes
@@ -273,7 +297,7 @@ func main() {
 	flag.StringVar(&mid_day_string, "mid_day", "", "time of the day to prioritize classes from. 24-hr format. Ex. 12:00")
 
 	flag.BoolVar(&rank_by_teacher, "rank_by_teacher", false, "whether to rank results by included/excluded teachers. true/false. For this to work, you must specify lists of teachers to include/exclude using --include_teacher or --exclude_teacher.")
-	flag.BoolVar(&rank_by_mid_day, "rank_by_mid_day", false, "whether to prioritize classes from around the time specified by --mid_day (default is 12:00)")
+	flag.BoolVar(&rank_by_mid_day, "rank_by_mid_day", true, "whether to prioritize classes from around the time specified by --mid_day (default is 12:00)")
 
 	flag.Parse()
 
