@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/tidwall/gjson"
 )
@@ -204,11 +205,11 @@ func create_course(data string, params Globals) []Course {
 			score_b := 0
 
 			for _, constr := range a.Constraints {
-				score_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				score_a -= get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
 			}
 
 			for _, constr := range b.Constraints {
-				score_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+				score_b -= get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
 			}
 
 			if params.rank_by_teacher {
@@ -222,7 +223,7 @@ func create_course(data string, params Globals) []Course {
 				}
 			}
 
-			return score_a < score_b
+			return score_a > score_b
 		})
 
 		if len(rec_classes) > 0 {
@@ -234,25 +235,25 @@ func create_course(data string, params Globals) []Course {
 				score_b := 0
 
 				for _, constr := range a.Constraints {
-					score_a += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+					score_a -= get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
 				}
 
 				for _, constr := range b.Constraints {
-					score_b += get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
+					score_b -= get_mid_day_score(get_med_time(constr.start_t, constr.end_t))
 				}
 
 				if params.rank_by_teacher {
 					for _, teacher := range params.include_list {
-						if lec_classes[i].Instructor == teacher {
+						if rec_classes[i].Instructor == teacher {
 							score_a += 750
 						}
-						if lec_classes[j].Instructor == teacher {
+						if rec_classes[j].Instructor == teacher {
 							score_b += 750
 						}
 					}
 				}
 
-				return score_a < score_b
+				return score_a > score_b
 			})
 		}
 	}
@@ -264,6 +265,13 @@ func create_course(data string, params Globals) []Course {
 		courses = append(courses, rec_course)
 	}
 	return courses
+}
+
+func parse_teacher_string(s string) []string {
+	fmt.Println(s)
+	split := strings.Split(s, ",")
+	fmt.Println(split)
+	return split
 }
 
 func main() {
@@ -306,6 +314,8 @@ func main() {
 	var mid_day *int = nil
 
 	var break_time *[]int = nil
+	var include_teacher []string = nil
+	var exclude_teacher []string = nil
 
 	if max_time_string != "" {
 		*max_time = parse_string_time(max_time_string)
@@ -321,12 +331,21 @@ func main() {
 
 	if break_time_string != "" {
 		*break_time = parse_string_time_slice(break_time_string)
+	}
 
+	if include_teacher_string != "" {
+		include_teacher = parse_teacher_string(include_teacher_string)
+	}
+
+	if exclude_teacher_string != "" {
+		exclude_teacher = parse_teacher_string(include_teacher_string)
 	}
 
 	params := globals_init()
 	params.rank_by_mid_day = rank_by_mid_day
 	params.rank_by_teacher = rank_by_teacher
+	params.include_list = include_teacher
+	params.exclude_list = exclude_teacher
 	params.time_between_classes = time_between_classes
 	params.topk = topk
 
@@ -350,6 +369,14 @@ func main() {
 		params.break_end = (*break_time)[1]
 	}
 
+	if include_teacher != nil {
+		params.include_list = include_teacher
+	}
+
+	if exclude_teacher != nil {
+		params.exclude_list = exclude_teacher
+	}
+
 	// search is applied as we create list
 	courses_list := create_courses_list(infile)
 	courses := make([]Course, 0)
@@ -357,6 +384,7 @@ func main() {
 	for _, course_name := range courses_list {
 		body := create_query_body(course_name)
 		res_string := ping_classes(_url, body)
+		fmt.Println(create_course(res_string, params))
 		courses = append(courses, create_course(res_string, params)...)
 	}
 
