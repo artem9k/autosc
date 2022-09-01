@@ -12,8 +12,97 @@
     <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+    <script>
+    </script>
     <h1>
         CU Class scheduler
     </h1>
+    <h3>Options</h3>
+    <hr>
+    <div class="form-group">
+
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="inlineCheckbox1" value="option1">
+            <label class="form-check-label" for="inlineCheckbox1">Rank by mid-day time (must be input)</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="inlineCheckbox2" value="option2">
+            <label class="form-check-label" for="inlineCheckbox2">Rank by teacher (must be input)</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="inlineCheckbox3" value="option3">
+            <label class="form-check-label" for="inlineCheckbox3">Print to outfile (default outfile.txt, will be in easysc directory) <label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="inlineCheckbox3" value="option3">
+            <label class="form-check-label" for="inlineCheckbox3">Create PNGs of schedules (default True)<label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="inlineCheckbox3" value="option3">
+            <label class="form-check-label" for="inlineCheckbox3">Draw schedules in webui (default True)<label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="inlineCheckbox3" value="option3" disabled>
+            <label class="form-check-label" for="inlineCheckbox3">3 (disabled)</label>
+          </div>
+          
+          <hr>
+          <br>
+          <br>
+
+      <div class="form-check form-check inline">
+        <label for="exampleInputEmail1">infile</label>
+        <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter name">
+        <small id="emailHelp" class="form-text text-muted">default: input.txt</small>
+        </div>
+    
+        <div class="form-check form-check inline">
+            <label for="exampleInputEmail1">outfile</label>
+            <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter name">
+            <small id="emailHelp" class="form-text text-muted">default: no outfile</small>
+        </div>
+
+        <div class="form-check form-check inline">
+            <label for="input_time">time start</label>
+            <input type="time" class="form-time" id="input_time" aria-describedby="emailHelp"> 
+            <small id="emailHelp" class="form-text text-muted">default: no outfile</small>
+        </div>
+
+        <div class="form-check form-check inline">
+            <label for="input_time">time end</label>
+            <input type="time" class="form-time" id="input_time" aria-describedby="emailHelp"> 
+            <small id="emailHelp" class="form-text text-muted">default: no outfile</small>
+        </div>
+
+        <div class="form-check form-check inline">
+            <label for="input_time">time mid day</label>
+            <input type="time" class="form-time" id="input_time" aria-describedby="emailHelp"> 
+            <small id="emailHelp" class="form-text text-muted">default: no outfile</small>
+        </div>
+
+        <hr>
+        <br>
+        <br>
+
+        <div class="form-check form-check inline">
+            <label for="input_time">topk (number of schedules to output)</label>
+            <input type="range" class="form-topk" id="input_time" aria-describedby="emailHelp"> 
+            <small id="emailHelp" class="form-text text-muted">default: no outfile</small>
+        </div>
+
+        <div class="form-check form-check inline">
+            <label for="form-time-between-classes">time between classes (minutes)</label>
+            <input type="range" class="form-time-between-classes" id="input_time_between_classes" aria-describedby="emailHelp" min="0" max="120"> 
+        </div>
+        
+        <hr>
+        <br>
+        <br>
+     
+      <button type="submit" class="btn btn-primary">Submit</button>
+      <div>
+      </div>
+      </div>
   </body>
 </html>
