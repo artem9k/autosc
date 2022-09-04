@@ -1,6 +1,6 @@
 ### cu-class-scheduler
 
-automatic scheduler for CU boulder students
+automatic scheduler for CU boulder students. outputs schedules in image format.
 
 ### Usage
 ```
